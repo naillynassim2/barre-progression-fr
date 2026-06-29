@@ -47,55 +47,51 @@ def ecrire_etat(annee: int, pourcentage: int) -> None:
 
 
 def generer_image(annee: int, pourcentage: int, chemin_sortie: str) -> None:
-    img = Image.new("RGB", (LARGEUR_IMG, HAUTEUR_IMG), COULEUR_FOND)
+    img = Image.new("RGB", (LARGEUR_IMG, HAUTEUR_IMG), (0, 0, 0))  # fond noir
     draw = ImageDraw.Draw(img)
 
-    marge_x = 80
-    marge_y = 170
-    hauteur_barre = 90
+    marge_x = 90
+    marge_y = 180
+    hauteur_barre = 110
     largeur_barre = LARGEUR_IMG - 2 * marge_x
+    rayon = hauteur_barre // 2
 
-    # Cadre de la barre
-    draw.rectangle(
+    # Bordure blanche en forme de pilule
+    draw.rounded_rectangle(
         [marge_x, marge_y, marge_x + largeur_barre, marge_y + hauteur_barre],
-        outline=COULEUR_TEXTE,
-        width=4,
+        radius=rayon, fill=(255, 255, 255),
     )
-
-    # Remplissage proportionnel
-    largeur_remplie = int(largeur_barre * (pourcentage / 100))
+    # Piste noire à l'intérieur
+    inset1 = 10
+    draw.rounded_rectangle(
+        [marge_x + inset1, marge_y + inset1, marge_x + largeur_barre - inset1, marge_y + hauteur_barre - inset1],
+        radius=rayon - inset1, fill=(0, 0, 0),
+    )
+    # Remplissage vert proportionnel
+    inset2 = 18
+    largeur_dispo = largeur_barre - 2 * inset2
+    largeur_remplie = int(largeur_dispo * (pourcentage / 100))
     if largeur_remplie > 0:
-        draw.rectangle(
-            [marge_x, marge_y, marge_x + largeur_remplie, marge_y + hauteur_barre],
-            fill=COULEUR_BARRE,
+        draw.rounded_rectangle(
+            [marge_x + inset2, marge_y + inset2, marge_x + inset2 + largeur_remplie, marge_y + hauteur_barre - inset2],
+            radius=max(rayon - inset2, 4), fill=(0, 230, 80),
         )
 
     try:
         police_titre = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 58
-        )
-        police_sous_titre = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 26
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 52
         )
     except OSError:
         police_titre = ImageFont.load_default()
-        police_sous_titre = ImageFont.load_default()
 
-    texte_titre = f"{annee} est complétée à {pourcentage} %"
+    texte_titre = f"{annee} est complétée à {pourcentage} %."
     bbox = draw.textbbox((0, 0), texte_titre, font=police_titre)
     largeur_texte = bbox[2] - bbox[0]
     draw.text(
-        ((LARGEUR_IMG - largeur_texte) / 2, 55),
+        ((LARGEUR_IMG - largeur_texte) / 2, 65),
         texte_titre,
         font=police_titre,
-        fill=COULEUR_TEXTE,
-    )
-
-    draw.text(
-        (marge_x, marge_y + hauteur_barre + 25),
-        "Bot Barre de Progression FR",
-        font=police_sous_titre,
-        fill=COULEUR_SOUS_TEXTE,
+        fill=(255, 255, 255),
     )
 
     img.save(chemin_sortie)
