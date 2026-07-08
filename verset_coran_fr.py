@@ -3,7 +3,7 @@
 Bot Verset du Coran FR
 -----------------------
 Poste 3 versets du Coran par jour sur X (matin, midi, soir),
-piochés aléatoirement dans tout le Coran via l'API fawazahmed0.
+piochés aléatoirement dans tout le Coran via l'API alquran.cloud.
 Traduction française de Muhammad Hamidullah.
 """
 
@@ -15,12 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import tweepy
-from PIL import Image, ImageDraw, ImageFont
 
 ETAT_FICHIER = Path(__file__).parent / "etat_coran.json"
 
-# Le Coran contient 114 sourates et 6236 versets au total
-# Structure : {sourate: nombre_de_versets}
 SOURATES = {
     1:7,2:286,3:200,4:176,5:120,6:165,7:206,8:75,9:129,10:109,
     11:123,12:111,13:43,14:52,15:99,16:128,17:111,18:110,19:98,20:135,
@@ -62,37 +59,40 @@ NOMS_SOURATES = {
     111:"Al-Masad",112:"Al-Ikhlas",113:"Al-Falaq",114:"An-Nas"
 }
 
+
 def verset_aleatoire():
-    """Choisit une sourate et un verset au hasard."""
     sourate = random.randint(1, 114)
     verset = random.randint(1, SOURATES[sourate])
     return sourate, verset
 
+
 def recuperer_verset(sourate: int, verset: int) -> str:
-    """Appelle l'API fawazahmed0 pour récupérer la traduction française."""
     url = f"https://api.alquran.cloud/v1/ayah/{sourate}:{verset}/fr.hamidullah"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-with urllib.request.urlopen(req, timeout=10) as r:
-    data = json.loads(r.read())
-    return data["data"]["text"]
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        data = json.loads(r.read())
+        return data["data"]["text"]
+
 
 def lire_etat() -> dict:
     if ETAT_FICHIER.exists():
         return json.loads(ETAT_FICHIER.read_text())
     return {"date": None, "posts_du_jour": 0}
 
+
 def ecrire_etat(date: str, posts: int) -> None:
     ETAT_FICHIER.write_text(json.dumps({"date": date, "posts_du_jour": posts}))
 
+
 def slot_actuel() -> int:
-    """Retourne le slot du jour (0=matin, 1=midi, 2=soir) selon l'heure UTC."""
     heure = datetime.now(timezone.utc).hour
     if heure < 8:
-        return 0   # matin   (6h BE)
+        return 0
     elif heure < 13:
-        return 1   # midi    (13h BE)
+        return 1
     else:
-        return 2   # soir    (20h BE)
+        return 2
+
 
 def poster_sur_x(texte: str) -> None:
     client = tweepy.Client(
@@ -103,6 +103,7 @@ def poster_sur_x(texte: str) -> None:
     )
     client.create_tweet(text=texte)
 
+
 def main() -> None:
     maintenant = datetime.now(timezone.utc)
     date_aujourd_hui = maintenant.strftime("%Y-%m-%d")
@@ -110,16 +111,13 @@ def main() -> None:
 
     etat = lire_etat()
 
-    # Si on a déjà posté au moins autant de posts que le slot+1 aujourd'hui, rien à faire
     if etat["date"] == date_aujourd_hui and etat["posts_du_jour"] > slot:
         print(f"Déjà posté pour le slot {slot} aujourd'hui.")
         return
 
-    # Réinitialiser le compteur si c'est un nouveau jour
     if etat["date"] != date_aujourd_hui:
         etat = {"date": date_aujourd_hui, "posts_du_jour": 0}
 
-    # Choisir un verset aléatoire et le récupérer
     sourate, verset = verset_aleatoire()
     texte_verset = recuperer_verset(sourate, verset)
 
@@ -130,7 +128,6 @@ def main() -> None:
     nom_sourate = NOMS_SOURATES.get(sourate, f"Sourate {sourate}")
     texte_tweet = f"« {texte_verset} »\n\n{nom_sourate} — {sourate}:{verset}"
 
-    # Limiter à 280 caractères si besoin (tronquer proprement)
     if len(texte_tweet) > 280:
         max_verset = 280 - len(f"\n\n{nom_sourate} — {sourate}:{verset}") - 6
         texte_verset = texte_verset[:max_verset].rsplit(" ", 1)[0] + "…"
@@ -140,6 +137,7 @@ def main() -> None:
     etat["posts_du_jour"] += 1
     ecrire_etat(date_aujourd_hui, etat["posts_du_jour"])
     print(f"Tweet envoyé : {texte_tweet}")
+
 
 if __name__ == "__main__":
     main()
